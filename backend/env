@@ -1,0 +1,13 @@
+CI_ENVIRONMENT = development
+
+database.default.hostname = localhost
+database.default.database = nombre_de_tu_base_de_datos
+database.default.username = tu_usuario
+database.default.password = tu_contraseña
+database.default.DBDriver = MySQLi
+database.default.port = 3306
+
+auth.jwtSecret = cambia_esto_por_una_cadena_aleatoria_larga
+
+groq.apiKey = tu_api_key_de_groq
+groq.model = llama-3.1-8b-instant

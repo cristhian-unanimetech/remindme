@@ -1,0 +1,81 @@
+<main class="profile-page">
+  <div class="profile-shell">
+
+    <a class="back-link" routerLink="/home">&#8592; Volver al mural</a>
+
+    <header class="profile-header">
+      <div class="avatar" aria-hidden="true">{{ userInitials }}</div>
+      <div class="profile-header-info">
+        <h1>{{ user()?.name }}</h1>
+        <p class="profile-email">{{ user()?.email }}</p>
+        <div class="profile-stats">
+          @if (memberSince) {
+            <span>Miembro desde {{ memberSince }}</span>
+          }
+          @if (memoriesCount !== null) {
+            <span>{{ memoriesCount }} {{ memoriesCount === 1 ? 'recuerdo' : 'recuerdos' }}</span>
+          }
+        </div>
+      </div>
+    </header>
+
+    <section class="profile-card">
+      <h2>Información personal</h2>
+      <form [formGroup]="profileForm" (ngSubmit)="saveProfile()">
+        <label>
+          Nombre
+          <input type="text" formControlName="name" autocomplete="name" />
+        </label>
+        <label>
+          Email
+          <input type="email" formControlName="email" autocomplete="email" readonly />
+        </label>
+
+        @if (profileSuccess) {
+          <p class="feedback-success">{{ profileSuccess }}</p>
+        }
+        @if (profileError) {
+          <p class="feedback-error">{{ profileError }}</p>
+        }
+
+        <footer>
+          <button type="submit" [disabled]="isSavingProfile">
+            {{ isSavingProfile ? 'Guardando...' : 'Guardar cambios' }}
+          </button>
+        </footer>
+      </form>
+    </section>
+
+    <section class="profile-card">
+      <h2>Seguridad</h2>
+      <form [formGroup]="passwordForm" (ngSubmit)="savePassword()">
+        <label>
+          Contraseña actual
+          <input type="password" formControlName="currentPassword" autocomplete="current-password" />
+        </label>
+        <label>
+          Nueva contraseña
+          <input type="password" formControlName="newPassword" autocomplete="new-password" />
+        </label>
+        <label>
+          Confirmar nueva contraseña
+          <input type="password" formControlName="newPasswordConfirmation" autocomplete="new-password" />
+        </label>
+
+        @if (passwordSuccess) {
+          <p class="feedback-success">{{ passwordSuccess }}</p>
+        }
+        @if (passwordError) {
+          <p class="feedback-error">{{ passwordError }}</p>
+        }
+
+        <footer>
+          <button type="submit" [disabled]="isSavingPassword">
+            {{ isSavingPassword ? 'Guardando...' : 'Cambiar contraseña' }}
+          </button>
+        </footer>
+      </form>
+    </section>
+
+  </div>
+</main>

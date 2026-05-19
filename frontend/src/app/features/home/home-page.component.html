@@ -1,0 +1,473 @@
+@if (showIntro) {
+  <div class="intro-overlay" aria-hidden="true">
+    <div class="intro-content">
+      <span class="intro-logo">RemindMe</span>
+      <span class="intro-tagline">Tus recuerdos, tu historia</span>
+    </div>
+  </div>
+}
+
+<main class="board-page">
+  <section class="board-shell">
+    <header class="topbar">
+      <a class="brand" routerLink="/">
+        <h1>RemindMe</h1>
+        @if (user(); as currentUser) {
+          <p>{{ currentUser.name }}</p>
+        }
+      </a>
+
+      <nav class="topbar-actions">
+        <button type="button" class="btn-new-memory" (click)="openCreateForm()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Nuevo recuerdo
+        </button>
+
+        <a class="topbar-avatar" routerLink="/profile" aria-label="Ver perfil">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+        </a>
+
+        <button
+          type="button"
+          class="btn-icon"
+          (click)="captureBoard()"
+          [disabled]="isCapturing || memories.length === 0"
+          title="Capturar mural como imagen"
+          aria-label="Capturar mural"
+        >
+          @if (isCapturing) {
+            <span class="ai-spinner" aria-hidden="true"></span>
+          } @else {
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+              <circle cx="12" cy="13" r="4"/>
+            </svg>
+          }
+        </button>
+
+        <button type="button" class="btn-icon" (click)="logout()" [disabled]="isLoggingOut" title="Cerrar sesión" aria-label="Cerrar sesión">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+        </button>
+      </nav>
+    </header>
+
+    <section class="filters">
+      <div class="filter-search-wrap">
+        <svg class="filter-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        <input
+          type="text"
+          class="filter-search-input"
+          [value]="search"
+          (input)="search = $any($event.target).value"
+          (keydown.enter)="applyFilters()"
+          placeholder="Buscar recuerdo..."
+        />
+      </div>
+
+      <select class="filter-pill" [class.active]="selectedTag" [value]="selectedTag" (change)="selectedTag = $any($event.target).value">
+        <option value="">Todas las tags</option>
+        @for (tag of availableTags; track tag) {
+          <option [value]="tag">{{ tag }}</option>
+        }
+      </select>
+
+      <select class="filter-pill" [value]="sortBy" (change)="onSortChange($any($event.target).value)">
+        <option value="date_desc">Más reciente</option>
+        <option value="date_asc">Más antiguo</option>
+        <option value="title_asc">Título A–Z</option>
+        <option value="title_desc">Título Z–A</option>
+      </select>
+
+      <div class="filter-date-group">
+        <input type="date" class="filter-pill" [class.active]="fromDate" [value]="fromDate" (change)="fromDate = $any($event.target).value" />
+        <span class="filter-date-sep">—</span>
+        <input type="date" class="filter-pill" [class.active]="toDate" [value]="toDate" (change)="toDate = $any($event.target).value" />
+      </div>
+
+      <div class="filter-actions">
+        <button type="button" (click)="applyFilters()">Filtrar</button>
+        @if (hasActiveFilters) {
+          <button type="button" class="secondary" (click)="clearFilters()">Limpiar</button>
+        }
+      </div>
+    </section>
+
+    @if (errorMessage) {
+      <p class="error-banner">{{ errorMessage }}</p>
+    }
+
+    @if (isLoading) {
+      <section class="bento-grid">
+        @for (item of skeletonItems; track $index) {
+          <article class="memory-card skeleton-card">
+            <div class="skeleton-cover"></div>
+            <div class="card-content">
+              <div class="skeleton-head">
+                <div class="skeleton-line" style="width: 58%"></div>
+                <div class="skeleton-line" style="width: 22%; height: 10px"></div>
+              </div>
+              <div class="skeleton-line" style="width: 100%"></div>
+              <div class="skeleton-line" style="width: 85%"></div>
+              <div class="skeleton-line" style="width: 65%"></div>
+            </div>
+          </article>
+        }
+      </section>
+    } @else if (memories.length === 0) {
+      <div class="empty-state">
+        <div class="empty-icon-wrap" aria-hidden="true">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+          </svg>
+        </div>
+        <h2 class="empty-title">Aún no tienes recuerdos</h2>
+        <p class="empty-subtitle">Empieza capturando tu primer momento especial</p>
+        <button type="button" (click)="openCreateForm()">Crear primer recuerdo</button>
+      </div>
+    } @else {
+      <section class="bento-grid" #bentoGrid [class.cards-entering]="cardsEntering">
+        @for (memory of memories; track memory.id; let i = $index) {
+          <article
+            #memoryCard
+            class="memory-card"
+            [style.--i]="i"
+            [style.--mood-color]="memory.moodColor || '#ffffff'"
+            [style.background]="cardTint(memory.moodColor)"
+          >
+            <button type="button" class="card-hitbox" (click)="openDetail(memory.id)">
+              @if (memory.primaryImageUrl) {
+                <img class="cover" [src]="imageUrl(memory.primaryImageUrl)" alt="Imagen del recuerdo" />
+              }
+
+              <div class="card-content">
+                <div class="card-head">
+                  <h2>{{ memory.title }}</h2>
+                  <time>{{ memory.memoryDate }}</time>
+                </div>
+
+                <p class="preview">{{ memory.contentPreview }}</p>
+
+                @if (memory.spotify.songTitle || memory.spotify.artistName || memory.spotify.coverUrl) {
+                  <div class="spotify-card">
+                    @if (memory.spotify.coverUrl) {
+                      <img [src]="memory.spotify.coverUrl" alt="Portada Spotify" />
+                    } @else {
+                      <div class="spotify-placeholder">Spotify</div>
+                    }
+                    <div>
+                      <p class="spotify-title">{{ memory.spotify.songTitle || 'Canción en Spotify' }}</p>
+                      <p class="spotify-subtitle">{{ memory.spotify.artistName || 'Artista no disponible' }}</p>
+                    </div>
+                  </div>
+                }
+
+                <div class="tags">
+                  @for (tag of memory.tags.slice(0, 3); track tag) {
+                    <span>{{ tag }}</span>
+                  }
+                </div>
+              </div>
+            </button>
+
+            <div class="card-actions" (click)="$event.stopPropagation()">
+              <button
+                type="button"
+                class="icon-btn"
+                title="Editar recuerdo"
+                aria-label="Editar recuerdo"
+                (click)="openEditForm($event, memory.id)"
+              >
+                &#9998;
+              </button>
+              <button
+                type="button"
+                class="icon-btn"
+                title="Eliminar recuerdo"
+                aria-label="Eliminar recuerdo"
+                (click)="openDeleteConfirm($event, memory.id)"
+                [disabled]="isDeletingMemory"
+              >
+                &#10005;
+              </button>
+            </div>
+          </article>
+        }
+      </section>
+    }
+  </section>
+</main>
+
+@if (isFormOpen) {
+  <section class="modal-backdrop" (click)="closeForm()">
+    <article class="modal-card" (click)="$event.stopPropagation()">
+      <header>
+        <h2>{{ isEditMode ? 'Editar recuerdo' : 'Nuevo recuerdo' }}</h2>
+      </header>
+
+      <form [formGroup]="memoryForm" (ngSubmit)="submitMemory()" class="memory-form">
+        <label>
+          Título
+          <input type="text" formControlName="title" maxlength="150" />
+        </label>
+        @if (memoryForm.controls.title.touched && memoryForm.controls.title.hasError('required')) {
+          <small class="field-error">El título es obligatorio.</small>
+        }
+        <div class="ai-row">
+          <button
+            type="button"
+            class="ai-btn"
+            [disabled]="isAiLoading || !memoryForm.controls.title.value.trim()"
+            (click)="requestAiAssist('improve_title')"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>
+            Mejorar título
+          </button>
+        </div>
+
+        <label>
+          Contenido
+          <textarea rows="3" formControlName="content"></textarea>
+        </label>
+        @if (memoryForm.controls.content.touched && memoryForm.controls.content.hasError('required')) {
+          <small class="field-error">El contenido es obligatorio.</small>
+        }
+        <div class="ai-row">
+          <button
+            type="button"
+            class="ai-btn"
+            [disabled]="isAiLoading || !memoryForm.controls.content.value.trim()"
+            (click)="requestAiAssist('improve_text')"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>
+            Mejorar texto
+          </button>
+          <button
+            type="button"
+            class="ai-btn"
+            [disabled]="isAiLoading || (!memoryForm.controls.title.value.trim() && !memoryForm.controls.content.value.trim())"
+            (click)="requestAiAssist('suggest_tags')"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>
+            Sugerir etiquetas
+          </button>
+        </div>
+
+        @if (isAiLoading) {
+          <div class="ai-loading">
+            <span class="ai-spinner" aria-hidden="true"></span>
+            Pensando...
+          </div>
+        }
+
+        @if (aiSuggestion) {
+          <div class="ai-suggestion-panel">
+            <p class="ai-suggestion-label">
+              @if (aiSuggestionTarget === 'improve_title') { Título sugerido }
+              @else if (aiSuggestionTarget === 'improve_text') { Texto mejorado }
+              @else { Etiquetas sugeridas }
+            </p>
+            <p class="ai-suggestion-text">{{ aiSuggestion }}</p>
+            <div class="ai-suggestion-actions">
+              <button type="button" class="ai-accept-btn" (click)="acceptAiSuggestion()">Aceptar</button>
+              <button type="button" class="ai-discard-btn" (click)="discardAiSuggestion()">Descartar</button>
+            </div>
+          </div>
+        }
+
+        <div class="grid-two">
+          <label>
+            Fecha
+            <input type="date" formControlName="memoryDate" />
+          </label>
+          @if (memoryForm.controls.memoryDate.touched && memoryForm.controls.memoryDate.hasError('required')) {
+            <small class="field-error">La fecha es obligatoria.</small>
+          }
+
+          <div class="color-field">
+            <p class="field-label">Mood color</p>
+            <div class="color-picker-row">
+              <input class="color-input" type="color" formControlName="moodColor" />
+              <span class="selected-color-preview" [style.background]="selectedMoodColor" aria-hidden="true"></span>
+              <code class="selected-color-code">{{ selectedMoodColor }}</code>
+            </div>
+          </div>
+        </div>
+
+        <label>
+          Spotify URL
+          <input type="url" formControlName="spotifyUrl" placeholder="https://open.spotify.com/track/..." />
+        </label>
+
+        <div class="tags-field">
+          <span class="field-label">Tags</span>
+          <div class="tag-chips-input" (click)="tagTextInput.focus()">
+            @for (tag of tagsArray; track tag) {
+              <span class="tag-chip">
+                {{ tag }}
+                <button type="button" class="tag-chip-remove" (click)="removeTag(tag)" [attr.aria-label]="'Quitar ' + tag">&#10005;</button>
+              </span>
+            }
+            <input
+              #tagTextInput
+              type="text"
+              class="tag-text-input"
+              placeholder="Añadir etiqueta..."
+              [value]="tagInputValue"
+              (input)="tagInputValue = $any($event.target).value"
+              (keydown)="onTagKeydown($event)"
+              (blur)="addTag(tagInputValue)"
+            />
+          </div>
+        </div>
+
+        <label>
+          Imágenes
+          <input type="file" multiple accept="image/*" (change)="onFilesSelected($event)" />
+        </label>
+
+        @if (isEditMode && existingImages.length > 0) {
+          <div class="existing-images">
+            @for (image of existingImages; track image.id) {
+              <button
+                type="button"
+                class="image-chip"
+                [class.remove]="isMarkedForRemoval(image.id)"
+                (click)="toggleRemoveExistingImage(image.id)"
+              >
+                <img [src]="imageUrl(image.url)" alt="Imagen existente" />
+                <span>{{ isMarkedForRemoval(image.id) ? 'Se borrará' : 'Mantener' }}</span>
+              </button>
+            }
+          </div>
+        }
+
+        @if (errorMessage) {
+          <p class="form-api-error">{{ errorMessage }}</p>
+        }
+
+        <footer>
+          <button type="button" class="neutral" (click)="closeForm()">Cancelar</button>
+          <button type="submit" [disabled]="isSavingMemory">
+            {{ isSavingMemory ? 'Guardando...' : 'Guardar' }}
+          </button>
+        </footer>
+      </form>
+    </article>
+  </section>
+}
+
+@if (isDetailOpen) {
+  <section class="modal-backdrop" (click)="closeDetail()">
+    <article
+      class="modal-card detail"
+      [style.background]="detailCardTint(detailMemory?.moodColor ?? null)"
+      (click)="$event.stopPropagation()"
+    >
+      @if (detailMemory; as memory) {
+        <header>
+          <h2>{{ memory.title }}</h2>
+          <time>{{ memory.memoryDate }}</time>
+        </header>
+
+        <p class="detail-content">{{ memory.content }}</p>
+
+        @if (memory.images.length > 0) {
+          <div class="detail-images">
+            @for (image of memory.images; track image.id) {
+              <img
+                [src]="imageUrl(image.url)"
+                alt="Imagen del recuerdo"
+                (click)="openImagePreview(imageUrl(image.url))"
+              />
+            }
+          </div>
+        }
+
+        <div class="tags">
+          @for (tag of memory.tags; track tag) {
+            <span>{{ tag }}</span>
+          }
+        </div>
+
+        @if (detailEmbedSafeUrl) {
+          <iframe
+            class="spotify-embed"
+            [src]="detailEmbedSafeUrl"
+            width="100%"
+            height="152"
+            frameborder="0"
+            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+          >
+          </iframe>
+        }
+      } @else {
+        <p>Cargando detalle...</p>
+      }
+    </article>
+  </section>
+}
+
+@if (isImagePreviewOpen && imagePreviewUrl) {
+  <section class="image-lightbox" (click)="closeImagePreview()">
+    <button
+      type="button"
+      class="image-lightbox-close"
+      aria-label="Cerrar imagen ampliada"
+      (click)="closeImagePreview(); $event.stopPropagation()"
+    >
+      Cerrar
+    </button>
+    <img
+      class="image-lightbox-content"
+      [src]="imagePreviewUrl"
+      alt="Imagen ampliada"
+      (click)="$event.stopPropagation()"
+    />
+  </section>
+}
+
+<div class="toast-container" aria-live="polite">
+  @for (toast of toasts; track toast.id) {
+    <div
+      class="toast"
+      [class.toast-success]="toast.type === 'success'"
+      [class.toast-error]="toast.type === 'error'"
+      role="alert"
+    >
+      <span>{{ toast.message }}</span>
+      <button type="button" class="toast-dismiss" (click)="dismissToast(toast.id)" aria-label="Cerrar notificación">&#10005;</button>
+    </div>
+  }
+</div>
+
+@if (isDeleteConfirmOpen) {
+  <section class="modal-backdrop" (click)="cancelDelete()">
+    <article class="modal-card confirm-modal" (click)="$event.stopPropagation()">
+      <h2>Eliminar recuerdo</h2>
+      <p>Esta acción no se puede deshacer. ¿Seguro que quieres eliminarlo?</p>
+      <footer class="confirm-footer">
+        <button type="button" class="secondary" (click)="cancelDelete()">Cancelar</button>
+        <button type="button" class="danger" (click)="confirmDelete()">Eliminar</button>
+      </footer>
+    </article>
+  </section>
+}
+
+
+
+
+
+
+
+
+
